@@ -1,0 +1,24 @@
+GO
+CREATE PROCEDURE UpdateConnectionForStations
+	-- Add the parameters for the stored procedure here
+	@jobId UNIQUEIDENTIFIER	
+AS
+BEGIN
+		
+update Connection set			
+	
+		OriginStationLocation = geography::Point(s.Latitude, s.Longitude, 4326)
+
+		from dbo.Job j
+		join Station s on j.LocationId = s.Id
+		join Connection cn on cn.OriginStationId = s.Id
+
+		
+update Connection set				
+		
+		DestinationStationLocation = geography::Point(s.Latitude, s.Longitude, 4326)
+		
+		from dbo.Job j
+		join Station s on j.LocationId = s.Id
+		join Connection cn on cn.DestinationStationId = s.Id;
+END
