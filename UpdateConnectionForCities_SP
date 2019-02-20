@@ -1,0 +1,79 @@
+GO
+CREATE PROCEDURE UpdateConnectionForCities
+	-- Add the parameters for the stored procedure here
+	@jobId UNIQUEIDENTIFIER	
+AS
+BEGIN
+
+WITH CitiesRobotIndex_ConnToUpdate_CTE (  CityId , RobotsNoIndex )
+	   AS  
+	   ( SELECT distinct cn.DestinationCityId, c.RobotsNoIndex
+		FROM 		
+		dbo.Job j 
+		join Connection cn on cn.OriginCityId = j.LocationId		
+		INNER JOIN City c	ON cn.DestinationCityId = c.Id		
+		WHERE 	j.JobId = @jobId),
+	ConnToUpdate_CTE ( RouteId, OriginScraperStationId, DestinationScraperStationId,  CityId, CountryId, CityLocation, CitiesInIndex )			
+	AS(	SELECT 
+			cn.RouteId,
+			cn.OriginScraperStationId,
+			cn.DestinationScraperStationId,
+			cn.OriginCityId, 						
+			
+			c.CountryId,
+			CityLocation = geography::Point(c.Latitude, c.Longitude, 4326), 						
+			CitiesInIndex =  ~ctt.RobotsNoIndex & ~c.RobotsNoIndex
+
+			from dbo.Job j 			
+			join City c on c.Id= j.LocationId
+			join Connection  cn  on cn.OriginCityId = j.LocationId
+			join CitiesRobotIndex_ConnToUpdate_CTE ctt on ctt.CityId = cn.DestinationCityId
+			where j.JobId = @jobId )			
+		
+update Connection set		
+		OriginCountryId = connUpdate.CountryId,
+		OriginCityLocation = connUpdate.CityLocation,
+		CitiesInIndex = connUpdate.CitiesInIndex
+
+		from Connection cn
+		inner join ConnToUpdate_CTE connUpdate	on
+		cn.RouteId = connUpdate.RouteId and cn.OriginScraperStationId = connUpdate.OriginScraperStationId 
+		and cn.DestinationScraperStationId = connUpdate.DestinationScraperStationId 
+		and cn.OriginCityId = connUpdate.CityId;
+
+WITH CitiesRobotIndex_ConnToUpdate_CTE (  CityId , RobotsNoIndex )
+	   AS  
+	   ( SELECT distinct cn.OriginCityId, c.RobotsNoIndex
+	    FROM
+		dbo.Job j 
+		join Connection cn on cn.DestinationCityId = j.LocationId		
+		INNER JOIN City c	ON cn.OriginCityId = c.Id		
+		WHERE 	j.JobId = @jobId),
+ConnToUpdate_CTE ( RouteId, OriginScraperStationId, DestinationScraperStationId,  CityId, CountryId, CityLocation, CitiesInIndex )					
+AS(	SELECT 
+			cn.RouteId,
+			cn.OriginScraperStationId,
+			cn.DestinationScraperStationId,
+			cn.DestinationCityId, 			
+					
+			c.CountryId,						
+			CityLocation = geography::Point(c.Latitude, c.Longitude, 4326), 						
+			CitiesInIndex =  ~ctt.RobotsNoIndex & ~c.RobotsNoIndex		
+					
+			from dbo.Job j 
+			join City c on c.Id= j.LocationId
+			join Connection  cn  on cn.DestinationCityId = j.LocationId
+			join CitiesRobotIndex_ConnToUpdate_CTE ctt on cn.OriginCityId = ctt.CityId
+			where j.JobId = @jobId )
+		
+update Connection set
+		DestinationCountryId = connUpdate.CountryId,
+		DestinationCityLocation = connUpdate.CityLocation,
+		CitiesInIndex = connUpdate.CitiesInIndex
+
+		from Connection cn
+		inner join ConnToUpdate_CTE connUpdate on
+		cn.RouteId = connUpdate.RouteId and cn.OriginScraperStationId = connUpdate.OriginScraperStationId 
+		and cn.DestinationScraperStationId = connUpdate.DestinationScraperStationId 
+		and cn.DestinationCityId = connUpdate.CityId;
+END
