@@ -1,0 +1,17 @@
+GO
+CREATE PROCEDURE DeleteConnectionForRoutes
+	-- Add the parameters for the stored procedure here
+	@jobId UNIQUEIDENTIFIER	
+AS
+BEGIN
+
+delete conn from dbo.Connection conn join dbo.Job j on conn.RouteId = j.LocationId;
+
+delete conn from 
+		dbo.Connection conn 
+		join dbo.Job j on j.JobId = @jobId
+		join Route r on r.Id = j.LocationId
+		join RouteScraperStation rss on rss.RouteId = j.LocationId 	
+		join RouteScraperStation rss2 on rss2.RouteId = j.LocationId 	
+		where (conn.CompanyId = r.CompanyId and conn.OriginScraperStationId = rss.ScraperStationId and conn.DestinationScraperStationId = rss2.ScraperStationId) 						
+END
